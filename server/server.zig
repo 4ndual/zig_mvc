@@ -1,5 +1,6 @@
 const std = @import("std");
 const HomeController = @import("../controllers/home_controller.zig").HomeController;
+const Http = @import("../utils/http.zig").Http;
 
 pub const Server = struct {
     allocator: std.mem.Allocator,
@@ -44,14 +45,31 @@ pub const Server = struct {
         const reader = client.stream.reader();
         const writer = client.stream.writer();
 
-        // Read the HTTP request
-        const request = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536) orelse return error.EmptyRequest;
-        defer self.allocator.free(request);
+        // Read the HTTP request line (method, path, and version)
+        const request_line = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536) orelse return error.EmptyRequest;
+        defer self.allocator.free(request_line);
 
-        // Log the request
-        std.log.info("Received request: {s}", .{request});
+        // Log the request line
+        std.log.info("Received request line: {s}", .{request_line});
 
-        // Handle the request
-        try self.home_controller.handleRequest(writer);
+        // Parse the request line
+        var tokens = std.mem.split(u8, request_line, " ");
+        const method_str = tokens.next() orelse return error.InvalidRequest;
+        const path = tokens.next() orelse return error.InvalidRequest;
+
+        const method = Http.parseMethod(method_str) orelse return error.InvalidMethod;
+
+        // Handle the request based on the method
+        switch (method) {
+            Http.Method.GET => {
+                try self.home_controller.handleGetRequest(writer, path);
+            },
+            Http.Method.POST => {
+                try self.home_controller.handlePostRequest(writer, path);
+            },
+            // Http.Method.PUT => {
+            //     try self.home_controller.handlePutRequest(writer, reader, path);
+            // },
+        }
     }
 };

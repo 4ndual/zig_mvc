@@ -13,8 +13,66 @@ pub const HomeController = struct {
         };
     }
 
-    pub fn handleRequest(self: *HomeController, writer: anytype) !void {
-        const html_content = HomeView.render();
-        try Http.sendHtmlResponse(self.allocator, writer, html_content);
+    pub fn handleGetRequest(self: *HomeController, writer: anytype, path: []const u8) !void {
+        if (std.mem.eql(u8, path, "/")) {
+            const html_content = HomeView.render();
+            try Http.sendHtmlResponse(self.allocator, writer, html_content);
+        } else if (std.mem.eql(u8, path, "/about")) {
+            const html_content = HomeView.render();
+            try Http.sendHtmlResponse(self.allocator, writer, html_content);
+        } else {
+            const html_content = "404 Not Found";
+            try Http.sendHtmlResponse(self.allocator, writer, html_content);
+        }
     }
+
+    pub fn handlePostRequest(self: *HomeController, writer: anytype, path: []const u8) !void {
+        if (std.mem.eql(u8, path, "/submit")) {
+            // Read the request body from the reader
+
+            // const body = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536);
+
+            // std.log.info("Received request line: {s}", .{body});
+            // defer self.allocator.free(body);
+
+            // Handle form submission or other POST data
+            const response_content = "{\"status\": \"success\", \"message\": \"POST data received!\"}";
+            try Http.sendJsonResponse(self.allocator, writer, response_content);
+        } else {
+            const response_content = "{\"status\": \"error\", \"message\": \"404 Not Found\"}";
+            try Http.sendJsonResponse(self.allocator, writer, response_content);
+        }
+    }
+
+    // pub fn handlePutRequest(self: *HomeController, writer: anytype, reader: anytype, path: []const u8) !void {
+    //     if (std.mem.eql(u8, path, "/update")) {
+    //         // Read the request body from the reader
+    //         const body = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536);
+    //         defer self.allocator.free(body);
+
+    //         // Handle update data
+    //         const response_content = "PUT data received!";
+    //         try Http.sendHtmlResponse(self.allocator, writer, response_content);
+    //     } else {
+    //         const html_content = "404 Not Found";
+    //         try Http.sendHtmlResponse(self.allocator, writer, html_content);
+    //     }
+    // }
 };
+
+// pub const HomeController = struct {
+//     allocator: std.mem.Allocator,
+//     view: HomeView,
+
+//     pub fn init(allocator: std.mem.Allocator) HomeController {
+//         return .{
+//             .allocator = allocator,
+//             .view = HomeView.init(),
+//         };
+//     }
+
+//     pub fn handleRequest(self: *HomeController, writer: anytype) !void {
+//         const html_content = HomeView.render();
+//         try Http.sendHtmlResponse(self.allocator, writer, html_content);
+//     }
+// };
