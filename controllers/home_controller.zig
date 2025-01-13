@@ -26,18 +26,19 @@ pub const HomeController = struct {
         }
     }
 
-    pub fn handlePostRequest(self: *HomeController, writer: anytype, path: []const u8) !void {
+    pub fn handlePostRequest(self: *HomeController, writer: anytype, path: []const u8, body: ?[]const u8) !void {
         if (std.mem.eql(u8, path, "/submit")) {
-            // Read the request body from the reader
+            if (body) |data| {
+                std.log.info("Received POST data: {s}", .{data});
 
-            // const body = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536);
+                // const parsed = try std.json.parse(Struct, &std.json.TokenStream.init(data));
 
-            // std.log.info("Received request line: {s}", .{body});
-            // defer self.allocator.free(body);
-
-            // Handle form submission or other POST data
-            const response_content = "{\"status\": \"success\", \"message\": \"POST data received!\"}";
-            try Http.sendJsonResponse(self.allocator, writer, response_content);
+                const response_content = "{\"status\": \"success\", \"message\": \"POST data received!\"}";
+                try Http.sendJsonResponse(self.allocator, writer, response_content);
+            } else {
+                const response_content = "{\"status\": \"error\", \"message\": \"No body received\"}";
+                try Http.sendJsonResponse(self.allocator, writer, response_content);
+            }
         } else {
             const response_content = "{\"status\": \"error\", \"message\": \"404 Not Found\"}";
             try Http.sendJsonResponse(self.allocator, writer, response_content);
@@ -59,20 +60,3 @@ pub const HomeController = struct {
     //     }
     // }
 };
-
-// pub const HomeController = struct {
-//     allocator: std.mem.Allocator,
-//     view: HomeView,
-
-//     pub fn init(allocator: std.mem.Allocator) HomeController {
-//         return .{
-//             .allocator = allocator,
-//             .view = HomeView.init(),
-//         };
-//     }
-
-//     pub fn handleRequest(self: *HomeController, writer: anytype) !void {
-//         const html_content = HomeView.render();
-//         try Http.sendHtmlResponse(self.allocator, writer, html_content);
-//     }
-// };

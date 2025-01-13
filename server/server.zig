@@ -45,12 +45,9 @@ pub const Server = struct {
         const reader = client.stream.reader();
         const writer = client.stream.writer();
 
-        // Read the HTTP request line (method, path, and version)
+        // Read the HTTP request line
         const request_line = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536) orelse return error.EmptyRequest;
         defer self.allocator.free(request_line);
-
-        // Log the request line
-        std.log.info("Received request line: {s}", .{request_line});
 
         // Parse the request line
         var tokens = std.mem.split(u8, request_line, " ");
@@ -59,17 +56,42 @@ pub const Server = struct {
 
         const method = Http.parseMethod(method_str) orelse return error.InvalidMethod;
 
+        // Read headers
+        var content_length: usize = 0;
+        while (true) {
+            const header_line = try reader.readUntilDelimiterOrEofAlloc(self.allocator, '\n', 65536) orelse break;
+            defer self.allocator.free(header_line);
+
+            const trimmed_line = std.mem.trim(u8, header_line, "\r\n");
+            if (trimmed_line.len == 0) break; // Empty line indicates end of headers
+
+            // Parse Content-Length header
+            if (std.ascii.startsWithIgnoreCase(trimmed_line, "Content-Length:")) {
+                const len_str = std.mem.trim(u8, trimmed_line["Content-Length:".len..], " \t");
+                content_length = try std.fmt.parseInt(usize, len_str, 10);
+            }
+        }
+
+        // Read body if present
+        var body: ?[]u8 = null;
+        defer if (body) |b| self.allocator.free(b);
+
+        if (content_length > 0) {
+            body = try self.allocator.alloc(u8, content_length);
+            const bytes_read = try reader.readAll(body.?);
+            if (bytes_read != content_length) {
+                return error.InvalidBodyLength;
+            }
+        }
+
         // Handle the request based on the method
         switch (method) {
             Http.Method.GET => {
                 try self.home_controller.handleGetRequest(writer, path);
             },
             Http.Method.POST => {
-                try self.home_controller.handlePostRequest(writer, path);
+                try self.home_controller.handlePostRequest(writer, path, body);
             },
-            // Http.Method.PUT => {
-            //     try self.home_controller.handlePutRequest(writer, reader, path);
-            // },
         }
     }
 };
