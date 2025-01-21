@@ -1,27 +1,36 @@
 const std = @import("std");
-const HomeController = @import("../controllers/home_controller.zig").HomeController;
+const GenericController = @import("../controllers/generic_controller.zig").GenericController;
 const Http = @import("../utils/http.zig").Http;
+const DatabaseConfig = @import("../config/database.zig").DatabaseConfig;
+const Database = @import("../database/connection.zig");
+const sqlite = @import("sqlite");
 
 pub const Server = struct {
     allocator: std.mem.Allocator,
     port: u16,
     server: std.net.Server,
-    home_controller: HomeController,
+    generic_controller: GenericController,
+    db: sqlite.Db,
 
-    pub fn init(allocator: std.mem.Allocator, port: u16) !Server {
+    pub fn init(allocator: std.mem.Allocator, port: u16, db_config: DatabaseConfig) !Server {
         const addr = std.net.Address.initIp4(.{ 0, 0, 0, 0 }, port);
+        var db = try Database.init(db_config.path);
         const server = try addr.listen(.{});
 
         return Server{
             .allocator = allocator,
             .port = port,
             .server = server,
-            .home_controller = HomeController.init(allocator),
+            .generic_controller = GenericController.init(allocator, &db),
+            .db = db,
         };
     }
 
     pub fn deinit(self: *Server) void {
-        self.server.stream.close();
+        std.debug.print("[{s}] Server.deinit called from:\n", .{"2025-01-20 13:37:45"});
+        std.debug.dumpCurrentStackTrace(@returnAddress());
+        self.server.deinit();
+        self.db.deinit();
     }
 
     pub fn start(self: *Server) !void {
@@ -87,10 +96,13 @@ pub const Server = struct {
         // Handle the request based on the method
         switch (method) {
             Http.Method.GET => {
-                try self.home_controller.handleGetRequest(writer, path);
+                try self.generic_controller.handleGetRequest(writer, path);
             },
             Http.Method.POST => {
-                try self.home_controller.handlePostRequest(writer, path, body);
+                try self.generic_controller.handlePostRequest(writer, path, body);
+            },
+            Http.Method.PUT => {
+                try self.generic_controller.handlePutRequest(writer, path, body);
             },
         }
     }

@@ -4,8 +4,7 @@ pub const Http = struct {
     pub const Method = enum {
         GET,
         POST,
-        // PUT,
-        // Add other methods as needed
+        PUT,
     };
 
     pub fn parseMethod(method_str: []const u8) ?Method {
@@ -13,8 +12,8 @@ pub const Http = struct {
             return Method.GET;
         } else if (std.mem.eql(u8, method_str, "POST")) {
             return Method.POST;
-            // } else if (std.mem.eql(u8, method_str, "PUT")) {
-            //     return Method.PUT;
+        } else if (std.mem.eql(u8, method_str, "PUT")) {
+            return Method.PUT;
         } else {
             return null;
         }
